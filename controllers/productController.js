@@ -3,14 +3,11 @@ const Product = require("../models/Product");
 const axios = require("axios");
 require("dotenv").config();
 const AmazonProduct = require("../models/AmazonProduct"); // djust the path to your model
-const { rewriteDescription } = require('../utils/descriptionUtils');
-
+const { rewriteDescription } = require("../utils/descriptionUtils");
 
 // Rainforest API credentials
 const API_KEY = process.env.API_KEY;
 const AMAZON_DOMAIN = process.env.AMAZON_DOMAIN;
-  
-
 
 console.log("API Key:", process.env.API_KEY);
 console.log("Amazon Domain:", process.env.AMAZON_DOMAIN);
@@ -26,7 +23,13 @@ const searchLocalProduct = async (req, res) => {
     // Find multiple products matching the query
     const products = await AmazonProduct.find(
       { title: new RegExp(query, "i") }, // Search by title using a case-insensitive regex
-      { title: 1, image: 1, url: 1, asin: 1 } // Project only the title, image, and url fields
+      {
+        // Projection to include only specific fields
+        images_flat: 1,
+        title: 1,
+        asin: 1,
+        link: 1,
+      }
     );
 
     if (products.length > 0) {
@@ -64,13 +67,17 @@ const searchAmazonProduct = async (req, res) => {
 
     if (products && products.length > 0) {
       return res.json(
-        products.map(product => ({
+        products.map((product) => ({
           id: product.asin,
           title: product.title,
+          link: product.link || "No description available",
           description: product.description || "No description available",
           price: product.price ? product.price.value : "Price not available",
           brand: product.brand ? product.brand : "Unknown Brand",
-          category: (product.category && product.category.length > 0) ? product.category[0].name : "Unknown Category",
+          category:
+            product.category && product.category.length > 0
+              ? product.category[0].name
+              : "Unknown Category",
           imageUrl: product.image,
         }))
       );
