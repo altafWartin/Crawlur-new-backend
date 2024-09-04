@@ -47,14 +47,28 @@ const searchLocalProduct = async (req, res) => {
 };
 
 const searchAmazonProduct = async (req, res) => {
-  let { query } = req.query;
+  let { query, page = 1, limit = 10 } = req.query;
+
+  // Convert page and limit to numbers
+  page = parseInt(page, 10);
+  limit = parseInt(limit, 10);
+
+  // Validate page and limit
+  if (isNaN(page) || page < 1) {
+    return res.status(400).json({ message: "Invalid page number" });
+  }
+  if (isNaN(limit) || limit < 1) {
+    return res.status(400).json({ message: "Invalid limit number" });
+  }
 
   try {
     const params = {
-      api_key: API_KEY,
+      api_key: process.env.API_KEY,
       type: "search",
-      amazon_domain: AMAZON_DOMAIN,
+      amazon_domain: process.env.AMAZON_DOMAIN,
       search_term: query,
+      page: page, // Add pagination parameters
+      page_size: limit, // Add pagination parameters
     };
 
     // Make the HTTP GET request to Rainforest API
@@ -66,8 +80,11 @@ const searchAmazonProduct = async (req, res) => {
     const products = response.data.search_results;
 
     if (products && products.length > 0) {
-      return res.json(
-        products.map((product) => ({
+      return res.json({
+        page,
+        limit,
+        total_results: response.data.total_results || products.length,
+        products: products.map((product) => ({
           id: product.asin,
           title: product.title,
           link: product.link || "No description available",
@@ -79,8 +96,8 @@ const searchAmazonProduct = async (req, res) => {
               ? product.category[0].name
               : "Unknown Category",
           imageUrl: product.image,
-        }))
-      );
+        })),
+      });
     } else {
       return res.status(404).json({ message: "No products found on Amazon" });
     }
@@ -94,7 +111,19 @@ const fetchAndSaveProduct = async (req, res) => {
   const { asin } = req.params;
 
   try {
-    // Set up the request parameters
+    // Check if the product already exists in the database
+    let product = await AmazonProduct.findOne({ asin });
+
+    if (product) {
+      // If product exists, return the product data from the database with a specific message
+      return res.status(200).json({
+        success: true,
+        message: "This data is from the local database",
+        amazonProduct: product,
+      });
+    }
+
+    // If product does not exist in the database, fetch it from Amazon
     const params = {
       api_key: process.env.API_KEY,
       amazon_domain: process.env.AMAZON_DOMAIN,
@@ -109,27 +138,22 @@ const fetchAndSaveProduct = async (req, res) => {
 
     const amazonProduct = response.data.product;
 
-    // Check if the product already exists in the database
-    let product = await AmazonProduct.findOne({ asin });
+    // Create a new product entry in the database
+    product = new AmazonProduct(amazonProduct);
+    await product.save();
 
-    if (product) {
-      // Update the existing product
-      product = await AmazonProduct.findOneAndUpdate({ asin }, amazonProduct, {
-        new: true,
-        upsert: true, // Creates a new document if no match is found
-      });
-    } else {
-      // Create a new product entry
-      product = new AmazonProduct(amazonProduct);
-      await product.save();
-    }
-
-    res.status(200).json({ success: true, data: product });
+    // Send response including Amazon product data
+    res.status(200).json({
+      success: true,
+      message: "This data is from Amazon",
+      amazonProduct: product,
+    });
   } catch (error) {
     console.error("Error fetching and saving product:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch and save product" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch and save product",
+    });
   }
 };
 
