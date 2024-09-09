@@ -5,8 +5,11 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
+const userRoutes = require("./routes/userRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 const cors = require("cors");
-
+require("dotenv").config();
 dotenv.config(); // Load env variables before using them
 connectDB();
 const app = express();
@@ -18,7 +21,20 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/audit", auditRoutes);
 
+app.post("/test", (req, res) => {
+  console.log("Test data:", req.body);
+  res.status(200).json({ success: true });
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 // Define the GET endpoint
 app.get("/search", async (req, res) => {
@@ -98,9 +114,3 @@ async function generateText(prompt) {
 }
 
 // generateText("Write a poem about India");
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});

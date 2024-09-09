@@ -12,4 +12,7 @@ router.get("/search-amazon", productController.searchAmazonProduct);
 
 router.get('/product/:asin', productController.fetchAndSaveProduct);
 
+// Route to get recently added products within the last 24 hours
+router.get("/recent-products", productController.getRecentProducts);
+
 module.exports = router;

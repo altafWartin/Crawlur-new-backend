@@ -5,46 +5,47 @@ require("dotenv").config();
 const AmazonProduct = require("../models/AmazonProduct"); // djust the path to your model
 const { rewriteDescription } = require("../utils/descriptionUtils");
 
-// Rainforest API credentials
-const API_KEY = process.env.API_KEY;
-const AMAZON_DOMAIN = process.env.AMAZON_DOMAIN;
 
-console.log("API Key:", process.env.API_KEY);
-console.log("Amazon Domain:", process.env.AMAZON_DOMAIN);
-
-// rewriteDescription("SanDisk Ultra microSDXC and microSDHC cards are fast for better pictures, app performance, and Full HD video. Ideal for Android smartphones and tablets, these A1-rated cards load apps faster for a better smartphone experience. Available in capacities up to 400GB, you have the capacity to take more pictures and Full HD video and capture life at its fullest. Built to perform in harsh conditions, SanDisk Ultra microSD cards are waterproof, temperature proof, shockproof, and X-ray proof. 1GB=1,000,000,000 bytes. Actual user storage less. (For 64GB-256GB): Up to 100MB/s read speed; write speed lower. (For 16GB-32GB): Up to 98MB/s read speed; write speed lower. Based on internal testing; performance may be lower depending on host device, interface, usage conditions and other factors. 1MB=1,000,000 bytes. (1) Full HD (1920x1080) video support may vary based upon host device, file attributes, and other factors. (2) Card only. (3) Results may vary based on host device, app type and other factors. (4) Download and installation required. (5) Based on 4.1GB transfer of photos (Average file 3.5MB) with USB 3.0 reader. Results may vary based on host device, file attributes and other factors. 6) Approximations; Results and Full HD (1920x1080) video support may vary based on host device, file attributes and other factors.");
 
 // Search for products in the local MongoDB database
 const searchLocalProduct = async (req, res) => {
   let { query } = req.query;
 
-  console.log(`Searching`, query);
+  // Validate the query parameter
+  if (!query || typeof query !== 'string' || query.trim() === '') {
+    return res.status(400).json({ message: "Invalid search query" });
+  }
+
+  console.log(`Searching for products with query: "${query}"`);
+
   try {
-    // Find multiple products matching the query
+    // Find multiple products matching the query within the nested `product.title` field
     const products = await AmazonProduct.find(
-      { title: new RegExp(query, "i") }, // Search by title using a case-insensitive regex
+      { 
+        'product.title': new RegExp(query, "i") // Search by `product.title` using a case-insensitive regex
+      },
       {
         // Projection to include only specific fields
-        images_flat: 1,
-        title: 1,
-        asin: 1,
-        link: 1,
+        'product.images_flat': 1,
+        'product.title': 1,
+        'product.asin': 1,
+        'product.link': 1,
       }
     );
 
     if (products.length > 0) {
-      console.log(products);
+      console.log(`Found ${products.length} products`);
       return res.json(products);
     } else {
-      return res
-        .status(404)
-        .json({ message: "No products found in local database" });
+      console.log("No products found");
+      return res.status(404).json({ message: "No products found in local database" });
     }
   } catch (error) {
     console.error("Error searching local products:", error);
     return res.status(500).json({ message: "Error searching local products" });
   }
 };
+
 
 const searchAmazonProduct = async (req, res) => {
   let { query, page = 1, limit = 10 } = req.query;
@@ -107,23 +108,12 @@ const searchAmazonProduct = async (req, res) => {
   }
 };
 
-const fetchAndSaveProduct = async (req, res) => {
-  const { asin } = req.params;
-
+const fetchProductFromAmazon = async (asin) => {
   try {
-    // Check if the product already exists in the database
-    let product = await AmazonProduct.findOne({ asin });
+    // Log: Product not found, fetching from Amazon
+  
+    
 
-    if (product) {
-      // If product exists, return the product data from the database with a specific message
-      return res.status(200).json({
-        success: true,
-        message: "This data is from the local database",
-        amazonProduct: product,
-      });
-    }
-
-    // If product does not exist in the database, fetch it from Amazon
     const params = {
       api_key: process.env.API_KEY,
       amazon_domain: process.env.AMAZON_DOMAIN,
@@ -132,28 +122,105 @@ const fetchAndSaveProduct = async (req, res) => {
     };
 
     // Make the HTTP GET request to Rainforest API
-    const response = await axios.get("https://api.rainforestapi.com/request", {
-      params,
+    const response = await axios.get("https://api.rainforestapi.com/request", { params });
+
+    // Log: Received response from Rainforest API
+  
+    // Extract the product from the response
+    const amazonProduct = response.data;
+
+
+
+    // Log: Saving product to the database
+ 
+    // Save product to the database
+    const savedProduct = new AmazonProduct(amazonProduct);
+    await savedProduct.save();
+
+    // Log: Successfully saved product to the database
+
+    return savedProduct;
+  } catch (error) {
+    // Log: Error occurred during product fetch/save
+    console.error("Error fetching/saving product from Amazon:", error.message);
+    throw error;
+  }
+};
+
+const fetchAndSaveProduct = async (req, res) => {
+  const { asin } = req.params;
+
+  // Log 1: Start of the function
+
+  if (!asin) {
+
+    return res.status(400).json({
+      success: false,
+      message: "ASIN is required",
+    });
+  }
+
+  try {
+  
+    // Check if the product already exists in the database
+    let product = await AmazonProduct.findOne({ "product.asin": asin });
+
+    if (product) {
+ 
+      // Send the response immediately if the product is found
+      return res.status(200).json({
+        success: true,
+        message: "This data is from the local database",
+        amazonProduct: product,
+      });
+    }
+
+  
+    // Send immediate response that the product is being fetched from Amazon
+    res.status(201).json({
+      success: true,
+      message: "This data is not in local database",
     });
 
-    const amazonProduct = response.data.product;
-
-    // Create a new product entry in the database
-    product = new AmazonProduct(amazonProduct);
-    await product.save();
-
-    // Send response including Amazon product data
-    res.status(200).json({
-      success: true,
-      message: "This data is from Amazon",
-      amazonProduct: product,
+    // Proceed to fetch the product and save it in the background
+    setImmediate(async () => {
+      try {
+        const fetchedProduct = await fetchProductFromAmazon(asin);
+      } catch (error) {
+        console.error("Error fetching product from Amazon in background:", error.message);
+      }
     });
   } catch (error) {
-    console.error("Error fetching and saving product:", error);
-    res.status(500).json({
+    // Log 10: Error occurred during the process
+    console.error("10. Error fetching and saving product:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch and save product",
     });
+  }
+};
+
+
+
+// Controller to get recently added products (within the last 24 hours)
+const getRecentProducts = async (req, res) => {
+  try {
+    // Calculate the date 24 hours ago
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Subtract 24 hours
+
+    // Query products created within the last 24 hours and have 'Approve' status
+    const recentProducts = await AmazonProduct.find({
+      createdAt: { $gte: yesterday },
+      status: "Approve",
+    });
+
+    // Return the recent products
+    res.status(200).json({ success: true, data: recentProducts });
+  } catch (err) {
+    console.error("Error fetching recent products:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -161,4 +228,5 @@ module.exports = {
   searchLocalProduct,
   searchAmazonProduct,
   fetchAndSaveProduct,
+  getRecentProducts,
 };
