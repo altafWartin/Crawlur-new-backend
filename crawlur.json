@@ -1,0 +1,173 @@
+{
+    "info": {
+        "name": "Crawlur User Management API",
+        "description": "API endpoints for user management in the Crawlur project.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Signup",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"name\": \"Admin\",\n    \"email\": \"admin@example.com\",\n    \"password\": \"adminpass\",\n    \"role\": \"Admin\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:5000/api/auth/signup",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "signup"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Login",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"adminpass\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:5000/api/auth/login",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "login"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Change Password",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer <your-jwt-token-here>",
+                        "description": "Include your JWT token here"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"oldPassword\": \"adminpass\",\n    \"newPassword\": \"newpassword\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:5000/api/auth/change-password",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "change-password"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Forget Password",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"admin@example.com\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:5000/api/auth/forget-password",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "forget-password"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Create Analyst (Admin only)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer <your-jwt-token-here>",
+                        "description": "Include your JWT token here"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"name\": \"Analyst\",\n    \"email\": \"analyst@example.com\",\n    \"password\": \"analystpass\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:5000/api/users/create-analyst",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "users",
+                        "create-analyst"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "List Users (Admin only)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer <your-jwt-token-here>",
+                        "description": "Include your JWT token here"
+                    }
+                ],
+                "url": {
+                    "raw": "http://localhost:5000/api/users/users",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "5000",
+                    "path": [
+                        "api",
+                        "users",
+                        "users"
+                    ]
+                }
+            },
+            "response": []
+        }
+    ]
+}
