@@ -5,14 +5,12 @@ require("dotenv").config();
 const AmazonProduct = require("../models/AmazonProduct"); // djust the path to your model
 const { rewriteDescription } = require("../utils/descriptionUtils");
 
-
-
 // Search for products in the local MongoDB database
 const searchLocalProduct = async (req, res) => {
   let { query } = req.query;
 
   // Validate the query parameter
-  if (!query || typeof query !== 'string' || query.trim() === '') {
+  if (!query || typeof query !== "string" || query.trim() === "") {
     return res.status(400).json({ message: "Invalid search query" });
   }
 
@@ -21,15 +19,15 @@ const searchLocalProduct = async (req, res) => {
   try {
     // Find multiple products matching the query within the nested `product.title` field
     const products = await AmazonProduct.find(
-      { 
-        'product.title': new RegExp(query, "i") // Search by `product.title` using a case-insensitive regex
+      {
+        "product.title": new RegExp(query, "i"), // Search by `product.title` using a case-insensitive regex
       },
       {
         // Projection to include only specific fields
-        'product.images_flat': 1,
-        'product.title': 1,
-        'product.asin': 1,
-        'product.link': 1,
+        "product.images_flat": 1,
+        "product.title": 1,
+        "product.asin": 1,
+        "product.link": 1,
       }
     );
 
@@ -38,14 +36,15 @@ const searchLocalProduct = async (req, res) => {
       return res.json(products);
     } else {
       console.log("No products found");
-      return res.status(404).json({ message: "No products found in local database" });
+      return res
+        .status(404)
+        .json({ message: "No products found in local database" });
     }
   } catch (error) {
     console.error("Error searching local products:", error);
     return res.status(500).json({ message: "Error searching local products" });
   }
 };
-
 
 const searchAmazonProduct = async (req, res) => {
   let { query, page = 1, limit = 10 } = req.query;
@@ -111,9 +110,6 @@ const searchAmazonProduct = async (req, res) => {
 const fetchProductFromAmazon = async (asin) => {
   try {
     // Log: Product not found, fetching from Amazon
-  
-    
-
     const params = {
       api_key: process.env.API_KEY,
       amazon_domain: process.env.AMAZON_DOMAIN,
@@ -122,17 +118,17 @@ const fetchProductFromAmazon = async (asin) => {
     };
 
     // Make the HTTP GET request to Rainforest API
-    const response = await axios.get("https://api.rainforestapi.com/request", { params });
+    const response = await axios.get("https://api.rainforestapi.com/request", {
+      params,
+    });
 
     // Log: Received response from Rainforest API
-  
+
     // Extract the product from the response
     const amazonProduct = response.data;
 
-
-
     // Log: Saving product to the database
- 
+
     // Save product to the database
     const savedProduct = new AmazonProduct(amazonProduct);
     await savedProduct.save();
@@ -147,13 +143,15 @@ const fetchProductFromAmazon = async (asin) => {
   }
 };
 
+
 const fetchAndSaveProduct = async (req, res) => {
-  const { asin } = req.params;
+  const { asin } = req.params; // Extract 'asin' from the request parameters (URL)
 
   // Log 1: Start of the function
 
+  // Check if the ASIN parameter is provided in the request
   if (!asin) {
-
+    // If ASIN is missing, return a 400 Bad Request with an error message
     return res.status(400).json({
       success: false,
       message: "ASIN is required",
@@ -161,13 +159,12 @@ const fetchAndSaveProduct = async (req, res) => {
   }
 
   try {
-  
-    // Check if the product already exists in the database
+    // Try to find the product in the local database by its ASIN
     let product = await AmazonProduct.findOne({ "product.asin": asin });
 
+    // If the product exists in the database
     if (product) {
- 
-      // Send the response immediately if the product is found
+      // Return the product data and a success message from the local database
       return res.status(200).json({
         success: true,
         message: "This data is from the local database",
@@ -175,33 +172,44 @@ const fetchAndSaveProduct = async (req, res) => {
       });
     }
 
-  
-    // Send immediate response that the product is being fetched from Amazon
+    // If the product is not found in the local database:
+    // Send an immediate response indicating the product is being fetched from Amazon
     res.status(201).json({
       success: true,
       message: "This data is not in local database",
     });
 
-    // Proceed to fetch the product and save it in the background
-    setImmediate(async () => {
-      try {
-        const fetchedProduct = await fetchProductFromAmazon(asin);
-      } catch (error) {
-        console.error("Error fetching product from Amazon in background:", error.message);
-      }
-    });
+    // If the product does not exist in the local database, proceed to fetch it from Amazon
+    if (!product) {
+      // Use `setImmediate` to asynchronously fetch the product from Amazon in the background
+      // This prevents blocking the response to the client
+      setImmediate(async () => {
+        try {
+          // Fetch the product from Amazon using the ASIN
+          const fetchedProduct = await fetchProductFromAmazon(asin);
+
+          // You can now add code here to save the fetched product to the local database (not shown)
+          // Example: await AmazonProduct.create(fetchedProduct);
+        } catch (error) {
+          // Log any errors that occur during the background fetch from Amazon
+          console.error(
+            "Error fetching product from Amazon in background:",
+            error.message
+          );
+        }
+      });
+    }
   } catch (error) {
-    // Log 10: Error occurred during the process
+    // Log any error that occurs during the process of fetching or saving the product
     console.error("10. Error fetching and saving product:", error);
 
+    // Return a 500 Internal Server Error with a failure message
     return res.status(500).json({
       success: false,
       message: "Failed to fetch and save product",
     });
   }
 };
-
-
 
 // Controller to get recently added products (within the last 24 hours)
 const getRecentProducts = async (req, res) => {

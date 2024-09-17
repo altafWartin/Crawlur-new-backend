@@ -64,21 +64,35 @@ exports.approveProduct = async (req, res) => {
   }
 };
 
-// Edit the product
+
 exports.editProduct = async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  console.log("updateData",updateData.title);
+
+  // Basic validation
+  if (!updateData || typeof updateData !== 'object') {
+    return res.status(400).json({ message: "Invalid update data" });
+  }
+
   try {
+    // Find and update the product
     const updatedProduct = await AmazonProduct.findByIdAndUpdate(
-      req.params.id,
-      { ...req.body, status: "Edit" },
-      { new: true }
+      id,
+      { $set: { product: updateData, status: "Edit" } },
+      { new: true, runValidators: true } // Ensure schema validation runs on update
     );
-    if (!updatedProduct)
+    if (!updatedProduct) {
       return res.status(404).json({ message: "Product not found" });
+    }
+
     res.json(updatedProduct);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(`Error updating product with ID ${id}:`, error); // Log the error
+    res.status(500).json({ message: "An error occurred while updating the product" });
   }
 };
+
 
 // Fix the product
 exports.fixProduct = async (req, res) => {
@@ -124,14 +138,29 @@ exports.duplicateProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // Delete the product
 exports.deleteProduct = async (req, res) => {
+  const { asin } = req.params; // Ensure asin is coming from the request parameters or body
+  console.log("Received request to delete product with ASIN:", asin); // Log asin to debug
+
   try {
-    const product = await AmazonProduct.findByIdAndDelete(req.params.id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json({ message: "Product deleted successfully" });
+    // Check if the product exists with the given ASIN
+    let product = await AmazonProduct.findOne({ "product.asin": asin });
+
+    if (!product) {
+      console.log("Product not found for ASIN:", asin); // Log when product is not found
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // If the product exists, delete it
+    await AmazonProduct.deleteOne({ "product.asin": asin });
+    console.log("Product deleted successfully for ASIN:", asin); // Log successful deletion
+
+    // Send success response
+    return res.json({ message: "Product deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error while deleting product:", error.message); // Log the error for debugging
+    return res.status(500).json({ message: error.message });
   }
 };
+
