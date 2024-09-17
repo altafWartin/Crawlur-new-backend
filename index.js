@@ -14,8 +14,13 @@ dotenv.config(); // Load env variables before using them
 connectDB();
 const app = express();
 
-// Allow all origins
-app.use(cors());
+
+// CORS configuration to allow specific origins
+app.use(cors({
+  origin: ['http://crawlur-admin.s3-website-us-east-1.amazonaws.com', 'http://crawlur-frontend.s3-website-us-east-1.amazonaws.com'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Optional: specify allowed methods
+  credentials: true, // Optional: allow cookies and credentials to be sent
+}));
 
 app.use(express.json());
 
