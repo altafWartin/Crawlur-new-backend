@@ -15,13 +15,12 @@ connectDB();
 const app = express();
 
 
-// CORS configuration to allow specific origins
+// Allow all origins to access the API
 app.use(cors({
-  origin: ['http://crawlur-admin.s3-website-us-east-1.amazonaws.com', 'http://crawlur-frontend.s3-website-us-east-1.amazonaws.com'],
+  origin: '*',  // This allows all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Optional: specify allowed methods
   credentials: true, // Optional: allow cookies and credentials to be sent
 }));
-
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
