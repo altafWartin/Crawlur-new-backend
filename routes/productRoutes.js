@@ -14,5 +14,6 @@ router.get('/product/:asin', productController.fetchAndSaveProduct);
 
 // Route to get recently added products within the last 24 hours
 router.get("/recent-products", productController.getRecentProducts);
+router.get("/last-recent-products", productController.getLastApprovedProducts);
 
 module.exports = router;

@@ -21,6 +21,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Optional: specify allowed methods
   credentials: true, // Optional: allow cookies and credentials to be sent
 }));
+
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);

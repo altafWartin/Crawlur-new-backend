@@ -211,30 +211,70 @@ const fetchAndSaveProduct = async (req, res) => {
   }
 };
 
-// Controller to get recently added products (within the last 24 hours)
 const getRecentProducts = async (req, res) => {
   try {
     // Calculate the date 24 hours ago
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Subtract 24 hours
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000); // Subtract 24 hours
 
-    // Query products created within the last 24 hours and have 'Approve' status
-    const recentProducts = await AmazonProduct.find({
-      createdAt: { $gte: yesterday },
-      status: "Approve",
+    // Extract page and limit from query params with defaults
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    // Query for recent products
+    const [recentProducts, totalProducts] = await Promise.all([
+      AmazonProduct.find({ createdAt: { $gte: yesterday }, status: "Approve" })
+        .skip(skip)
+        .limit(limit),
+      AmazonProduct.countDocuments({ createdAt: { $gte: yesterday }, status: "Approve" })
+    ]);
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // Respond with products and pagination info
+    res.status(200).json({
+      success: true,
+      data: recentProducts,
+      meta: {
+        currentPage: page,
+        totalPages,
+        totalProducts,
+        pageSize: recentProducts.length
+      }
     });
-
-    // Return the recent products
-    res.status(200).json({ success: true, data: recentProducts });
   } catch (err) {
     console.error("Error fetching recent products:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
+const getLastApprovedProducts = async (req, res) => {
+  try {
+    // Query for the last approved products
+    const approvedProducts = await AmazonProduct.find({ status: "Approve" })
+      .limit(7); // Limit to the last 10 products
+
+    // Respond with products
+    res.status(200).json({
+      success: true,
+      data: approvedProducts,
+      meta: {
+        totalProducts: approvedProducts.length
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching approved products:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+
+
 module.exports = {
   searchLocalProduct,
   searchAmazonProduct,
   fetchAndSaveProduct,
   getRecentProducts,
+  getLastApprovedProducts
 };
